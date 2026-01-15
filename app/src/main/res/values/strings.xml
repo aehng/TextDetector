@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">TextDetector</string>
+    <string name="accessibility_service_description">Service that detects and reads text on the screen.</string>
+</resources>
