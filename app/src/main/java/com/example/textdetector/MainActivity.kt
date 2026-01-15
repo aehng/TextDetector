@@ -10,8 +10,20 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import androidx.core.app.ActivityCompat
 import android.Manifest
+import android.provider.Settings
+import android.app.AlertDialog
+import android.content.ComponentName
+import android.text.TextUtils
+import android.content.Context
+import android.content.Intent
+import android.accessibilityservice.AccessibilityService
+import android.util.Log
+import android.widget.Button
+import android.widget.LinearLayout
+import android.view.Gravity
 
 class MainActivity : AppCompatActivity() {
+    private val NOTIFICATION_PERMISSION_REQUEST_CODE = 1001
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -22,18 +34,125 @@ class MainActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
-        // In MainActivity.kt
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(
-                    this,
-                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                    1001
-                )
-            }
+
+        setupUI()
+        checkPermissions()
+    }
+
+    private fun setupUI() {
+        val layout = findViewById<androidx.constraintlayout.widget.ConstraintLayout>(R.id.main)
+
+        // Create a vertical layout for buttons
+        val buttonLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.MATCH_PARENT
+            )
         }
 
+        // Add test button
+        val testButton = Button(this).apply {
+            text = "Open Dog Test Page"
+            setOnClickListener {
+                startActivity(Intent(this@MainActivity, DogTestActivity::class.java))
+            }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(0, 20, 0, 20)
+            }
+        }
+        buttonLayout.addView(testButton)
 
+        layout.addView(buttonLayout)
+    }
+
+    private fun checkPermissions() {
+        Log.d("PermissionCheck", "=== Checking Permissions ===")
+
+        // Check notification permission
+        val hasNotificationPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true // Not needed on older Android versions
+        }
+        Log.d("PermissionCheck", "✓ Notification permission: $hasNotificationPermission")
+
+        // Check accessibility service
+        val hasAccessibilityPermission = isAccessibilityServiceEnabled(this, MyAccessibilityService::class.java)
+        Log.d("PermissionCheck", "✓ Accessibility service: $hasAccessibilityPermission")
+
+        // Request notification permission first if needed
+        if (!hasNotificationPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Log.d("PermissionCheck", "→ Requesting notification permission...")
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                NOTIFICATION_PERMISSION_REQUEST_CODE
+            )
+        } else {
+            // If notification permission is OK, check accessibility
+            checkAccessibilityService()
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        if (requestCode == NOTIFICATION_PERMISSION_REQUEST_CODE) {
+            val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+            Log.d("PermissionCheck", "✓ Notification permission result: $granted")
+
+            // After notification permission is handled, check accessibility
+            checkAccessibilityService()
+        }
+    }
+
+    private fun checkAccessibilityService() {
+        val hasAccessibilityPermission = isAccessibilityServiceEnabled(this, MyAccessibilityService::class.java)
+
+        if (!hasAccessibilityPermission) {
+            Log.d("PermissionCheck", "→ Prompting for accessibility service...")
+            AlertDialog.Builder(this)
+                .setTitle("Enable Accessibility Service")
+                .setMessage("To detect the word 'dog' on screen, please enable the TextDetector accessibility service in your device settings.\n\nLook for 'TextDetector' in the list and toggle it ON.")
+                .setPositiveButton("Open Settings") { _, _ ->
+                    startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                }
+                .setNegativeButton("Later", null)
+                .setCancelable(false)
+                .show()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Log current permission status when returning to the app
+        val hasAccessibility = isAccessibilityServiceEnabled(this, MyAccessibilityService::class.java)
+        Log.d("PermissionCheck", "onResume - Accessibility enabled: $hasAccessibility")
+    }
+
+    private fun isAccessibilityServiceEnabled(context: Context, service: Class<out AccessibilityService>): Boolean {
+        val expectedComponentName = ComponentName(context, service)
+        val enabledServices = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        )
+
+        if (enabledServices.isNullOrEmpty()) return false
+
+        val colonSplitter = TextUtils.SimpleStringSplitter(':')
+        colonSplitter.setString(enabledServices)
+
+        while (colonSplitter.hasNext()) {
+            val componentName = ComponentName.unflattenFromString(colonSplitter.next())
+            if (componentName != null && componentName == expectedComponentName) {
+                return true
+            }
+        }
+        return false
     }
 }

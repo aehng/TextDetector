@@ -2,37 +2,168 @@ package com.example.textdetector
 
 import android.accessibilityservice.AccessibilityService
 import android.view.accessibility.AccessibilityEvent
-import android.widget.Toast
-
+import android.view.accessibility.AccessibilityNodeInfo
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import androidx.core.app.NotificationCompat
+import android.util.Log
 
 class MyAccessibilityService : AccessibilityService() {
     private var lastNotificationTime = 0L
-    override fun onAccessibilityEvent(event: AccessibilityEvent) {
-        when (event.eventType) {
-            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED,
-            AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED,
-            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
-                // Handle the event here
-                val eventTexts = event.text.joinToString(" ") { it.toString() }
-                val contentDesc = event.contentDescription?.toString() ?: ""
-                val allText = (event.text.joinToString(" ") { it.toString() } + " " +
-                        (event.contentDescription?.toString() ?: "")).trim()
+    private val CHANNEL_ID = "dog_detection_channel"
+    private val NOTIFICATION_ID = 1
 
-                if (allText.lowercase().contains("dog")) {
-                    val now = System.currentTimeMillis()
-                    if (now - lastNotificationTime > 5000) {
-                        Toast.makeText(this, "The word 'dog' was detected!", Toast.LENGTH_LONG).show()
-                        lastNotificationTime = now
-                    }
+    override fun onServiceConnected() {
+        super.onServiceConnected()
+        Log.d("DogDetection", "✓ Accessibility service connected and running")
+
+        // Programmatically configure the service to ensure it captures events
+        try {
+            val info = serviceInfo
+            info.eventTypes = AccessibilityEvent.TYPES_ALL_MASK
+            info.feedbackType = android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_GENERIC
+            info.flags = android.accessibilityservice.AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or
+                         android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS or
+                         android.accessibilityservice.AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS
+            info.notificationTimeout = 100
+            // Listen to all packages (system-wide) so detection works outside this app
+            info.packageNames = null
+            serviceInfo = info
+            Log.d("DogDetection", "✓ Service configuration updated programmatically")
+            // Diagnostic dump of serviceInfo
+            try {
+                val si = serviceInfo
+                Log.d("DogDetection", "serviceInfo.eventTypes=${si.eventTypes}")
+                Log.d("DogDetection", "serviceInfo.feedbackType=${si.feedbackType}")
+                Log.d("DogDetection", "serviceInfo.flags=${si.flags}")
+                Log.d("DogDetection", "serviceInfo.notificationTimeout=${si.notificationTimeout}")
+                Log.d("DogDetection", "serviceInfo.packageNames=${si.packageNames?.joinToString()}")
+            } catch (e: Exception) {
+                Log.e("DogDetection", "Error dumping serviceInfo: ${e.message}")
+            }
+        } catch (e: Exception) {
+            Log.e("DogDetection", "Error configuring service: ${e.message}")
+        }
+
+        createNotificationChannel()
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name = "Dog Detection Alerts"
+            val descriptionText = "Notifications when 'dog' is detected on screen."
+            val importance = NotificationManager.IMPORTANCE_HIGH
+            val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
+                description = descriptionText
+            }
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            notificationManager.createNotificationChannel(channel)
+            Log.d("DogDetection", "✓ Notification channel created")
+        }
+    }
+
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (event == null) return
+
+        // Log ALL events to see what we're receiving
+        val eventTypeName = AccessibilityEvent.eventTypeToString(event.eventType)
+        Log.d("DogDetection", "📥 Event: $eventTypeName | pkg=${event.packageName} | class=${event.className}")
+
+        // Get text from the event
+        val eventText = event.text.joinToString(" ")
+        val contentDesc = event.contentDescription?.toString() ?: ""
+        var allText = "$eventText $contentDesc"
+
+        // Also try to get text from the source node
+        try {
+            event.source?.let { node ->
+                val nodeText = getTextFromNode(node)
+                allText += " $nodeText"
+                node.recycle()
+            }
+        } catch (e: Exception) {
+            Log.e("DogDetection", "Error getting node text: ${e.message}")
+        }
+
+        allText = allText.trim()
+
+        if (allText.isNotEmpty()) {
+            Log.d("DogDetection", "📝 Text found: $allText")
+
+            if (allText.lowercase().contains("dog")) {
+                Log.d("DogDetection", "🐕 DETECTED 'dog' in text: $allText")
+                val now = System.currentTimeMillis()
+                if (now - lastNotificationTime > 5000) {
+                    showDogNotification()
+                    lastNotificationTime = now
+                    Log.d("DogDetection", "✓ Notification sent")
+                } else {
+                    Log.d("DogDetection", "⏳ Skipped notification (debounce)")
                 }
             }
-            else -> {
-                // Ignore other event types
+        } else {
+            Log.d("DogDetection", "⚠️ No text in this event")
+        }
+    }
+
+    private fun getTextFromNode(node: AccessibilityNodeInfo): String {
+        val builder = StringBuilder()
+
+        // Get text from this node
+        node.text?.let { builder.append(it).append(" ") }
+        node.contentDescription?.let { builder.append(it).append(" ") }
+
+        // Recursively get text from child nodes
+        for (i in 0 until node.childCount) {
+            try {
+                node.getChild(i)?.let { child ->
+                    builder.append(getTextFromNode(child)).append(" ")
+                    child.recycle()
+                }
+            } catch (e: Exception) {
+                // Skip if child is not accessible
             }
+        }
+
+        return builder.toString().trim()
+    }
+
+    private fun showDogNotification() {
+        try {
+            val intent = Intent(this, MainActivity::class.java)
+            val pendingIntent = PendingIntent.getActivity(
+                this,
+                0,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentTitle("🐕 Dog Detected!")
+                .setContentText("The word 'dog' was found on screen.")
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+                .setVibrate(longArrayOf(0, 250, 250, 250))
+
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            notificationManager.notify(NOTIFICATION_ID, builder.build())
+        } catch (e: Exception) {
+            Log.e("DogDetection", "Error showing notification: ${e.message}")
         }
     }
 
     override fun onInterrupt() {
-        // Required override, can be left empty for now
+        Log.d("DogDetection", "Service interrupted")
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        Log.d("DogDetection", "Service destroyed")
     }
 }
