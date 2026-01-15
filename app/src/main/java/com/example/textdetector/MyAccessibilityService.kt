@@ -16,6 +16,16 @@ class MyAccessibilityService : AccessibilityService() {
     private var lastNotificationTime = 0L
     private val CHANNEL_ID = "dog_detection_channel"
     private val NOTIFICATION_ID = 1
+    // Prevent reacting to our own notification text and system UI echoes
+    private var lastNotificationText: String? = null
+    private var lastNotificationTextTime = 0L
+    private val NOTIFICATION_TEXT_TTL = 10_000L // keep last notification text for 10s
+    // De-duplication: track last sent normalized text and time to avoid repeated notifications
+    private var lastSentNormalizedText: String? = null
+    private var lastSentTime = 0L
+    private val SENT_DEDUP_TTL = 10_000L // 10s
+    // Notification body constant
+    private val NOTIFICATION_BODY = "The word 'dog' was found on screen."
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -69,6 +79,24 @@ class MyAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
 
+        // Ignore system UI events to avoid reacting to notification shade updates
+        val pkgName = event.packageName?.toString() ?: ""
+        if (pkgName == "com.android.systemui") {
+            Log.d("DogDetection", "Ignoring system UI events to avoid loops")
+            return
+        }
+
+        // If the last notification text is recent, ignore events that contain it
+        val now = System.currentTimeMillis()
+        if (lastNotificationText != null && now - lastNotificationTextTime < NOTIFICATION_TEXT_TTL) {
+            // We'll still gather text to log, but skip detection if it matches our notification
+            val eventTextPreview = (event.text.joinToString(" ") + " " + (event.contentDescription?.toString() ?: "")).trim()
+            if (eventTextPreview.contains(lastNotificationText!!, ignoreCase = true)) {
+                Log.d("DogDetection", "Ignoring event because it matches last notification text")
+                return
+            }
+        }
+
         // Log ALL events to see what we're receiving
         val eventTypeName = AccessibilityEvent.eventTypeToString(event.eventType)
         Log.d("DogDetection", "📥 Event: $eventTypeName | pkg=${event.packageName} | class=${event.className}")
@@ -96,10 +124,21 @@ class MyAccessibilityService : AccessibilityService() {
 
             if (allText.lowercase().contains("dog")) {
                 Log.d("DogDetection", "🐕 DETECTED 'dog' in text: $allText")
-                val now = System.currentTimeMillis()
-                if (now - lastNotificationTime > 5000) {
+                val now2 = System.currentTimeMillis()
+                // Normalize text to dedupe similar notifications (strip non-alphanum and collapse spaces)
+                val normalized = allText.lowercase().replace(Regex("[^a-z0-9\\s]"), " ").replace(Regex("\\s+"), " ").trim()
+                if (lastSentNormalizedText != null && normalized == lastSentNormalizedText && now2 - lastSentTime < SENT_DEDUP_TTL) {
+                    Log.d("DogDetection", "Duplicate detection (same text within TTL), skipping notification")
+                    return
+                }
+                if (now2 - lastNotificationTime > 5000) {
+                    // record dedupe keys and notification text BEFORE posting to avoid immediate echo-triggered duplicates
+                    lastSentNormalizedText = normalized
+                    lastSentTime = now2
+                    lastNotificationTime = now2
+                    lastNotificationText = NOTIFICATION_BODY
+                    lastNotificationTextTime = now2
                     showDogNotification()
-                    lastNotificationTime = now
                     Log.d("DogDetection", "✓ Notification sent")
                 } else {
                     Log.d("DogDetection", "⏳ Skipped notification (debounce)")
@@ -142,10 +181,11 @@ class MyAccessibilityService : AccessibilityService() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
+            val notificationText = NOTIFICATION_BODY
             val builder = NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
                 .setContentTitle("🐕 Dog Detected!")
-                .setContentText("The word 'dog' was found on screen.")
+                .setContentText(notificationText)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
@@ -153,10 +193,10 @@ class MyAccessibilityService : AccessibilityService() {
 
             val notificationManager = getSystemService(NotificationManager::class.java)
             notificationManager.notify(NOTIFICATION_ID, builder.build())
-        } catch (e: Exception) {
-            Log.e("DogDetection", "Error showing notification: ${e.message}")
-        }
-    }
+         } catch (e: Exception) {
+             Log.e("DogDetection", "Error showing notification: ${e.message}")
+         }
+     }
 
     override fun onInterrupt() {
         Log.d("DogDetection", "Service interrupted")
