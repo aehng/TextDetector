@@ -40,7 +40,7 @@ class DogTestActivity : AppCompatActivity() {
         textView.requestFocus()
         // Announce initial text to accessibility
         textView.sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
-        window.decorView?.sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
+        window.decorView.sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)
         Log.d("DogTestActivity", "Initial text: ${testTexts[testIndex]}")
 
         nextButton.setOnClickListener {
@@ -49,13 +49,11 @@ class DogTestActivity : AppCompatActivity() {
             textView.contentDescription = textView.text
             // Force accessibility event for testing
             textView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED)
-            // also send window/content/focus events to be safe
-            textView.sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
-            textView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED)
             // Announce explicitly to trigger accessibility services reliably
-            textView.announceForAccessibility(textView.text)
-            window.decorView?.sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
-            Log.d("DogTestActivity", "Sent accessibility events for: ${testTexts[testIndex]}")
+            val event = AccessibilityEvent.obtain()
+            event.eventType = AccessibilityEvent.TYPE_ANNOUNCEMENT
+            event.text.add(textView.text)
+            textView.parent.requestSendAccessibilityEvent(textView, event)
             Log.d("DogTestActivity", "Changed text to: ${testTexts[testIndex]}")
         }
 
@@ -64,10 +62,10 @@ class DogTestActivity : AppCompatActivity() {
             textView.text = testTexts[testIndex]
             textView.contentDescription = textView.text
             textView.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED)
-            textView.sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
-            textView.announceForAccessibility(textView.text)
-            window.decorView?.sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
-            Log.d("DogTestActivity", "Sent accessibility events for reset")
+            val event = AccessibilityEvent.obtain()
+            event.eventType = AccessibilityEvent.TYPE_ANNOUNCEMENT
+            event.text.add(textView.text)
+            textView.parent.requestSendAccessibilityEvent(textView, event)
             Log.d("DogTestActivity", "Reset to: ${testTexts[testIndex]}")
         }
     }

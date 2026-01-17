@@ -39,9 +39,10 @@ class MainActivity : AppCompatActivity() {
 
 
     private fun setupUI() {
-        val usernameEt = findViewById<android.widget.EditText>(R.id.etUsername)
+        val usernameEt = findViewById<android.widget.EditText>(R.id.usernameEditText)
         val passwordEt = findViewById<android.widget.EditText>(R.id.etPassword)
-        val startBtn = findViewById<android.widget.Button>(R.id.btnStart)
+        val startBtn = findViewById<android.widget.Button>(R.id.startButton)
+
 
         startBtn.setOnClickListener {
             val username = usernameEt.text.toString().trim()

@@ -10,6 +10,7 @@ import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import android.util.Log
+import kotlin.concurrent.thread
 
 class BadWord(val word: String,val regex: Regex, val severity: Int) {
 
@@ -24,21 +25,21 @@ class MyAccessibilityService : AccessibilityService() {
     private val SENT_DEDUP_TTL = 10_000L // 10s
     // Notification body constant
     private var badWords: List<BadWord> = emptyList()
+    private val lock = Any() // Lock object for synchronizing access to shared variables
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         myPackageName = packageName
-        // Configure the service; avoid verbose logs
         try {
             val info = serviceInfo
-            info.eventTypes = AccessibilityEvent.TYPES_ALL_MASK
+            // Include both text changes and window content changes to handle static web pages
+            info.eventTypes = AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED or
+                              AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
             info.feedbackType = android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_GENERIC
             info.flags = android.accessibilityservice.AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or
-                         android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS or
-                         android.accessibilityservice.AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS
-            info.notificationTimeout = 100
-            // Listen to all packages (system-wide)
-            info.packageNames = null
+                         android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            info.notificationTimeout = 500 // Increased timeout to reduce event frequency
+            info.packageNames = null // Listen to all packages
             serviceInfo = info
         } catch (_: Exception) {
             Log.e("DogDetection", "Error configuring service")
@@ -118,75 +119,65 @@ private fun loadBadWordsFromAssets() {
 
         val pkgName = event.packageName?.toString() ?: ""
 
-        // Ignore events from System UI and from our own app to prevent feedback loops.
+        // Ignore events from System UI and our own app
         if (pkgName == "com.android.systemui" || pkgName == myPackageName) {
             return
         }
 
         // Gather text from the event and node tree
-        val eventTypeName = AccessibilityEvent.eventTypeToString(event.eventType)
         val eventText = event.text.joinToString(" ")
         val contentDesc = event.contentDescription?.toString() ?: ""
         var allText = "$eventText $contentDesc"
 
-        try {
-            event.source?.let { node ->
-                val nodeText = getTextFromNode(node)
-                allText += " $nodeText"
+        // Offload text extraction to a background thread
+        thread {
+            try {
+                event.source?.let { node ->
+                    val nodeText = getTextFromNode(node)
+                    allText += " $nodeText"
+                }
+            } catch (_: Exception) {
+                Log.e("DogDetection", "Error getting node text")
             }
-        } catch (_: Exception) {
-            Log.e("DogDetection", "Error getting node text")
-        }
 
-        allText = allText.trim()
+            allText = allText.trim()
+            if (allText.isEmpty()) return@thread
 
-        if (allText.isNotEmpty()) {
-            val textToSearch = allText.lowercase()
+            val toProcess = allText.lowercase()
             var foundWord: BadWord? = null
-
-            // --- This part is already correct and efficient ---
-            // Find the highest severity word present in the text
-            // The list is pre-sorted, so the first match is the highest priority
             for (badWord in badWords) {
-                if (badWord.regex.containsMatchIn(textToSearch)) {
+                if (badWord.regex.containsMatchIn(toProcess)) {
                     foundWord = badWord
-                    break // Found it, stop searching
+                    break
                 }
             }
-            // --- End of correct part ---
 
-            // --- START: This is the corrected integration logic ---
             if (foundWord != null) {
-                // A bad word was found! Now, check if we should notify.
                 val now = System.currentTimeMillis()
+                val normalized = toProcess.replace(Regex("[^a-z0-9\\s]"), " ").replace(Regex("\\s+"), " ").trim()
 
-                // 1. De-duplicate based on the actual screen content
-                val normalized = textToSearch.replace(Regex("[^a-z0-9\\s]"), " ").replace(Regex("\\s+"), " ").trim()
-                if (lastSentNormalizedText != null && normalized == lastSentNormalizedText && now - lastSentTime < SENT_DEDUP_TTL) {
-                    return // Same content seen recently, do nothing.
-                }
+                synchronized(lock) {
+                    if (lastSentNormalizedText != null &&
+                        normalized == lastSentNormalizedText &&
+                        now - lastSentTime < SENT_DEDUP_TTL) {
+                        return@synchronized
+                    }
 
-                // 2. Throttle notifications to avoid being too frequent
-                if (now - lastNotificationTime > 5000) {
-                    // We are clear to send a notification!
+                    if (now - lastNotificationTime > 5000) {
+                        lastSentNormalizedText = normalized
+                        lastSentTime = now
+                        lastNotificationTime = now
 
-                    // Record dedupe keys and time BEFORE posting
-                    lastSentNormalizedText = normalized
-                    lastSentTime = now
-                    lastNotificationTime = now
+                        val toLog = if (allText.length > 2000) allText.take(2000) + "..." else allText
+                        val logMessage = "DETECTED '${foundWord.word}' (Severity: ${foundWord.severity}) pkg=$pkgName event=${AccessibilityEvent.eventTypeToString(event.eventType)} text=\"$toLog\""
+                        val notificationBody = "Detected word: '${foundWord.word}'"
 
-                    // Create dynamic log and notification messages using the foundWord
-                    val toLog = if (allText.length > 2000) allText.take(2000) + "..." else allText
-                    val logMessage = "DETECTED '${foundWord.word}' (Severity: ${foundWord.severity}) pkg=$pkgName event=$eventTypeName text=\"$toLog\""
-                    val notificationBody = "Detected word: '${foundWord.word}'"
-
-                    Log.i("DogDetection", logMessage)
-
-                    // Show the notification with the specific details
-                    showNotification(notificationBody)
+                        // Reduce logging to critical events only
+                        Log.i("DogDetection", logMessage)
+                        showNotification(notificationBody)
+                    }
                 }
             }
-            // --- END: Corrected integration logic ---
         }
     }
 

@@ -8,12 +8,14 @@
     tools:context=".MainActivity">
 
     <EditText
-        android:id="@+id/etUsername"
+        android:id="@+id/usernameEditText"
         android:layout_width="366dp"
         android:layout_height="38dp"
         android:layout_marginTop="252dp"
         android:hint="Username"
-        android:inputType="textEmailAddress"
+        android:contentDescription="Enter your username"
+        android:inputType="textPersonName"
+        android:importantForAccessibility="yes"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.488"
         app:layout_constraintStart_toStartOf="parent"
@@ -25,18 +27,20 @@
         android:layout_height="38dp"
         android:layout_marginTop="28dp"
         android:hint="Password"
+        android:contentDescription="Enter your password"
         android:inputType="textPassword"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.488"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/etUsername" />
+        app:layout_constraintTop_toBottomOf="@id/usernameEditText" />
 
     <Button
-        android:id="@+id/btnStart"
+        android:id="@+id/startButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
         android:text="Start"
+        android:contentDescription="Start the application"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.869"
         app:layout_constraintStart_toStartOf="parent"
