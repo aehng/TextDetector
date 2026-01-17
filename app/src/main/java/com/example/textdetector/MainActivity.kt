@@ -18,9 +18,7 @@ import android.content.Context
 import android.content.Intent
 import android.accessibilityservice.AccessibilityService
 import android.util.Log
-import android.widget.Button
-import android.widget.LinearLayout
-import android.view.Gravity
+
 
 class MainActivity : AppCompatActivity() {
     private val NOTIFICATION_PERMISSION_REQUEST_CODE = 1001
@@ -39,36 +37,39 @@ class MainActivity : AppCompatActivity() {
         checkPermissions()
     }
 
+
     private fun setupUI() {
-        val layout = findViewById<androidx.constraintlayout.widget.ConstraintLayout>(R.id.main)
+        val usernameEt = findViewById<android.widget.EditText>(R.id.etUsername)
+        val passwordEt = findViewById<android.widget.EditText>(R.id.etPassword)
+        val startBtn = findViewById<android.widget.Button>(R.id.btnStart)
 
-        // Create a vertical layout for buttons
-        val buttonLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.MATCH_PARENT
-            )
-        }
+        startBtn.setOnClickListener {
+            val username = usernameEt.text.toString().trim()
+            val password = passwordEt.text.toString().trim()
 
-        // Add test button
-        val testButton = Button(this).apply {
-            text = "Open Dog Test Page"
-            setOnClickListener {
-                startActivity(Intent(this@MainActivity, DogTestActivity::class.java))
+            var valid = true
+            if (username.isEmpty()) {
+                usernameEt.error = "Username required"
+                valid = false
+            } else {
+                usernameEt.error = null
             }
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                setMargins(0, 20, 0, 20)
-            }
-        }
-        buttonLayout.addView(testButton)
 
-        layout.addView(buttonLayout)
+            if (password.isEmpty()) {
+                passwordEt.error = "Password required"
+                valid = false
+            } else {
+                passwordEt.error = null
+            }
+
+            if (!valid) return@setOnClickListener
+
+            startActivity(Intent(this@MainActivity, DogTestActivity::class.java))
+        }
     }
+
+
+
 
     private fun checkPermissions() {
         Log.d("PermissionCheck", "=== Checking Permissions ===")
@@ -86,7 +87,7 @@ class MainActivity : AppCompatActivity() {
         Log.d("PermissionCheck", "✓ Accessibility service: $hasAccessibilityPermission")
 
         // Request notification permission first if needed
-        if (!hasNotificationPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !hasNotificationPermission) {
             Log.d("PermissionCheck", "→ Requesting notification permission...")
             ActivityCompat.requestPermissions(
                 this,
