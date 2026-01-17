@@ -34,7 +34,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         setupUI()
-        checkPermissions()
+        // Removed checkPermissions() from here to ensure it is only called after signing in
     }
 
 
@@ -65,14 +65,24 @@ class MainActivity : AppCompatActivity() {
 
             if (!valid) return@setOnClickListener
 
-            startActivity(Intent(this@MainActivity, DogTestActivity::class.java))
+            // Check all permissions before proceeding to the next activity
+            checkPermissions { allPermissionsGranted ->
+                if (allPermissionsGranted) {
+                    // Proceed to the next activity only if all permissions are granted
+                    startActivity(Intent(this@MainActivity, DogTestActivity::class.java))
+                } else {
+                    // Show a message to the user if permissions are not granted
+                    AlertDialog.Builder(this)
+                        .setTitle("Permissions Required")
+                        .setMessage("Please grant all required permissions to proceed.")
+                        .setPositiveButton("OK", null)
+                        .show()
+                }
+            }
         }
     }
 
-
-
-
-    private fun checkPermissions() {
+    private fun checkPermissions(callback: (Boolean) -> Unit) {
         Log.d("PermissionCheck", "=== Checking Permissions ===")
 
         // Check notification permission
@@ -87,17 +97,35 @@ class MainActivity : AppCompatActivity() {
         val hasAccessibilityPermission = isAccessibilityServiceEnabled(this, MyAccessibilityService::class.java)
         Log.d("PermissionCheck", "✓ Accessibility service: $hasAccessibilityPermission")
 
-        // Request notification permission first if needed
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !hasNotificationPermission) {
+        if (!hasNotificationPermission) {
             Log.d("PermissionCheck", "→ Requesting notification permission...")
             ActivityCompat.requestPermissions(
                 this,
                 arrayOf(Manifest.permission.POST_NOTIFICATIONS),
                 NOTIFICATION_PERMISSION_REQUEST_CODE
             )
+        }
+
+        if (!hasAccessibilityPermission) {
+            Log.d("PermissionCheck", "→ Prompting for accessibility service...")
+            AlertDialog.Builder(this)
+                .setTitle("Enable Accessibility Service")
+                .setMessage("To detect the word 'dog' on screen, please enable the TextDetector accessibility service in your device settings.\n\nLook for 'TextDetector' in the list and toggle it ON.")
+                .setPositiveButton("Open Settings") { _, _ ->
+                    startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                }
+                .setNegativeButton("Cancel") { _, _ ->
+                    callback(false)
+                }
+                .setOnDismissListener {
+                    // Check again after the dialog is dismissed
+                    val recheckedPermission = isAccessibilityServiceEnabled(this, MyAccessibilityService::class.java)
+                    callback(recheckedPermission && hasNotificationPermission)
+                }
+                .setCancelable(false)
+                .show()
         } else {
-            // If notification permission is OK, check accessibility
-            checkAccessibilityService()
+            callback(hasNotificationPermission && hasAccessibilityPermission)
         }
     }
 

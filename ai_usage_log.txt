@@ -21,6 +21,16 @@ Actions performed by AI:
 18. Added content descriptions to EditText fields and the Start button in `activity_main.xml` for improved accessibility.
 19. Optimized `DogTestActivity.kt` by removing redundant `sendAccessibilityEvent` calls to reduce unnecessary event processing.
 20. Removed the unused `Logs` class to clean up the codebase.
+21. Updated `MainActivity.kt` to move the accessibility permission prompt to occur after the user successfully signs in.
+    - The `checkAccessibilityService` method is now called after the Start button is clicked and the username and password are validated.
+22. Removed the call to `checkPermissions` from the `onCreate` method in `MainActivity.kt`.
+    - This ensures that accessibility permissions are only checked after the user successfully signs in.
+23. Updated `MainActivity.kt` to ensure all permissions, including notification permissions, are checked after the user successfully signs in.
+    - Moved the `checkPermissions` call to the Start button's OnClickListener in the `setupUI` method.
+24. Updated `MainActivity.kt` to ensure that the app does not proceed to the next screen until all permissions, including accessibility permissions, are granted.
+    - Modified the `setupUI` method to call `checkPermissions` before navigating to the next activity.
+    - Added a callback mechanism to `checkPermissions` to handle the result of the permission checks.
+    - Updated the `checkPermissions` method to handle both notification and accessibility permissions and invoke the callback with the result.
 
 Next steps:
 - Test the app to ensure all changes work as expected and verify performance improvements.
@@ -29,3 +39,11 @@ Next steps:
 - Use Android Studio's Profiler to monitor performance and identify any remaining bottlenecks.
 - Verify that accessibility features function correctly.
 - Monitor performance to ensure no new issues have been introduced.
+- Test the app to ensure the accessibility permission prompt appears after signing in.
+- Verify that the app behaves as expected and no new issues are introduced.
+- Test the app to confirm that the accessibility permission prompt no longer appears on startup.
+- Verify that the prompt is displayed only after the user signs in.
+- Test the app to confirm that all necessary permissions are checked after signing in.
+- Verify that the app behaves as expected and no new issues are introduced.
+- Test the app to confirm that it waits for all permissions to be granted before navigating to the next screen.
+- Verify that the app behaves as expected and no new issues are introduced.
