@@ -17,7 +17,6 @@ import android.text.TextUtils
 import android.content.Context
 import android.content.Intent
 import android.accessibilityservice.AccessibilityService
-import android.util.Log
 
 
 class MainActivity : AppCompatActivity() {
@@ -34,9 +33,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         setupUI()
-        // Removed checkPermissions() from here to ensure it is only called after signing in
     }
-
 
     private fun setupUI() {
         val usernameEt = findViewById<android.widget.EditText>(R.id.usernameEditText)
@@ -65,40 +62,28 @@ class MainActivity : AppCompatActivity() {
 
             if (!valid) return@setOnClickListener
 
-            // Check all permissions before proceeding to the next activity
+            // Check all permissions after user clicks Start button
             checkPermissions { allPermissionsGranted ->
                 if (allPermissionsGranted) {
                     // Proceed to the next activity only if all permissions are granted
                     startActivity(Intent(this@MainActivity, DogTestActivity::class.java))
-                } else {
-                    // Show a message to the user if permissions are not granted
-                    AlertDialog.Builder(this)
-                        .setTitle("Permissions Required")
-                        .setMessage("Please grant all required permissions to proceed.")
-                        .setPositiveButton("OK", null)
-                        .show()
                 }
             }
         }
     }
 
     private fun checkPermissions(callback: (Boolean) -> Unit) {
-        Log.d("PermissionCheck", "=== Checking Permissions ===")
-
         // Check notification permission
         val hasNotificationPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
         } else {
             true // Not needed on older Android versions
         }
-        Log.d("PermissionCheck", "✓ Notification permission: $hasNotificationPermission")
 
         // Check accessibility service
         val hasAccessibilityPermission = isAccessibilityServiceEnabled(this, MyAccessibilityService::class.java)
-        Log.d("PermissionCheck", "✓ Accessibility service: $hasAccessibilityPermission")
 
         if (!hasNotificationPermission) {
-            Log.d("PermissionCheck", "→ Requesting notification permission...")
             ActivityCompat.requestPermissions(
                 this,
                 arrayOf(Manifest.permission.POST_NOTIFICATIONS),
@@ -107,7 +92,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (!hasAccessibilityPermission) {
-            Log.d("PermissionCheck", "→ Prompting for accessibility service...")
             AlertDialog.Builder(this)
                 .setTitle("Enable Accessibility Service")
                 .setMessage("To detect the word 'dog' on screen, please enable the TextDetector accessibility service in your device settings.\n\nLook for 'TextDetector' in the list and toggle it ON.")
@@ -134,7 +118,6 @@ class MainActivity : AppCompatActivity() {
 
         if (requestCode == NOTIFICATION_PERMISSION_REQUEST_CODE) {
             val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
-            Log.d("PermissionCheck", "✓ Notification permission result: $granted")
 
             // After notification permission is handled, check accessibility
             checkAccessibilityService()
@@ -145,25 +128,40 @@ class MainActivity : AppCompatActivity() {
         val hasAccessibilityPermission = isAccessibilityServiceEnabled(this, MyAccessibilityService::class.java)
 
         if (!hasAccessibilityPermission) {
-            Log.d("PermissionCheck", "→ Prompting for accessibility service...")
             AlertDialog.Builder(this)
                 .setTitle("Enable Accessibility Service")
                 .setMessage("To detect the word 'dog' on screen, please enable the TextDetector accessibility service in your device settings.\n\nLook for 'TextDetector' in the list and toggle it ON.")
                 .setPositiveButton("Open Settings") { _, _ ->
-                    startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                    val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    startActivity(intent)
+
+                    // Start a background thread to monitor accessibility service status
+                    Thread {
+                        while (!isAccessibilityServiceEnabled(this, MyAccessibilityService::class.java)) {
+                            Thread.sleep(1000) // Check every second
+                        }
+
+                        // Once enabled, bring the user back to the app
+                        runOnUiThread {
+                            try {
+                                val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+                                if (launchIntent != null) {
+                                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                                    startActivity(launchIntent)
+                                }
+                            } catch (e: Exception) {
+                            }
+                        }
+                    }.start()
                 }
-                .setNegativeButton("Later", null)
+                .setNegativeButton("Later") { _, _ ->
+                }
                 .setCancelable(false)
                 .show()
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        // Log current permission status when returning to the app
-        val hasAccessibility = isAccessibilityServiceEnabled(this, MyAccessibilityService::class.java)
-        Log.d("PermissionCheck", "onResume - Accessibility enabled: $hasAccessibility")
-    }
 
     private fun isAccessibilityServiceEnabled(context: Context, service: Class<out AccessibilityService>): Boolean {
         val expectedComponentName = ComponentName(context, service)

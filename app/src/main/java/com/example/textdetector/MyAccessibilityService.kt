@@ -9,7 +9,6 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
-import android.util.Log
 import kotlin.concurrent.thread
 
 class BadWord(val word: String,val regex: Regex, val severity: Int) {
@@ -42,7 +41,6 @@ class MyAccessibilityService : AccessibilityService() {
             info.packageNames = null // Listen to all packages
             serviceInfo = info
         } catch (_: Exception) {
-            Log.e("DogDetection", "Error configuring service")
         }
 
         createNotificationChannel()
@@ -88,11 +86,9 @@ private fun loadBadWordsFromAssets() {
         }
 
     } catch (e: Exception) {
-        Log.e("DogDetection", "Error loading bad_words.csv: ${e.message}")
     }
 
     badWords = foundWords.sortedByDescending { it.severity }
-    Log.i("DogDetection", "Loaded ${badWords.size} bad words.")
 }
 
 
@@ -109,7 +105,6 @@ private fun loadBadWordsFromAssets() {
                 val notificationManager = getSystemService(NotificationManager::class.java)
                 notificationManager.createNotificationChannel(channel)
             } catch (_: Exception) {
-                Log.e("DogDetection", "Error creating notification channel")
             }
         }
     }
@@ -137,7 +132,6 @@ private fun loadBadWordsFromAssets() {
                     allText += " $nodeText"
                 }
             } catch (_: Exception) {
-                Log.e("DogDetection", "Error getting node text")
             }
 
             allText = allText.trim()
@@ -173,7 +167,6 @@ private fun loadBadWordsFromAssets() {
                         val notificationBody = "Detected word: '${foundWord.word}'"
 
                         // Reduce logging to critical events only
-                        Log.i("DogDetection", logMessage)
                         showNotification(notificationBody)
                     }
                 }
@@ -295,7 +288,6 @@ private fun loadBadWordsFromAssets() {
         } catch (_: Exception) {
             // Log any error while building or showing the notification. We swallow the exception
             // to avoid crashing the accessibility service (robustness is important for background services).
-            Log.e("DogDetection", "Error showing notification")
         }
     }
 
