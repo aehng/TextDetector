@@ -10,4 +10,5 @@
     <string name="start_the_application">Start the application</string>
     <string name="dog_data">Dog Data</string>
     <string name="test_with_dog_data">Test with Dog data</string>
+    <string name="to_detect_words_on_screen_please_enable_the_textdetector_accessibility_service_in_your_device_settings_n_nlook_for_textdetector_in_the_list_and_toggle_it_on">To detect words on screen, please enable the TextDetector accessibility service in your device settings.\n\nLook for \'TextDetector\' in the list and toggle it ON.</string>
 </resources>

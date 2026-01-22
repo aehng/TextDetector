@@ -18,6 +18,7 @@ import android.content.Context
 import android.content.Intent
 import android.accessibilityservice.AccessibilityService
 import android.util.Log
+import android.widget.TextView
 
 
 class MainActivity : AppCompatActivity() {
@@ -98,16 +99,17 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (!hasAccessibilityPermission) {
+            val dialogView = layoutInflater.inflate(R.layout.dialog_accessibility_image, null)
+            val messageView = dialogView.findViewById<TextView>(R.id.dialogMessage)
+            messageView.text = "To detect words on screen, please enable the TextDetector accessibility service in your device settings.\n\nLook for 'TextDetector' in the list and toggle it ON."
+
             AlertDialog.Builder(this)
                 .setTitle("Enable Accessibility Service")
-                .setMessage("To detect words on screen, please enable the TextDetector accessibility service in your device settings.\n\nLook for 'TextDetector' in the list and toggle it ON.")
-                .setIcon(R.drawable.settings_steps)
+                .setView(dialogView)
                 .setPositiveButton("Open Settings") { _, _ ->
                     startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                 }
-                .setNegativeButton("Cancel") { _, _ ->
-                    callback(false)
-                }
+                .setNegativeButton("Cancel") { _, _ -> }
                 .setOnDismissListener {
                     // Check again after the dialog is dismissed
                     val recheckedPermission = isAccessibilityServiceEnabled(this, MyAccessibilityService::class.java)
