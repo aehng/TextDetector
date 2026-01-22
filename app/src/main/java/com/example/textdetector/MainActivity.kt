@@ -101,7 +101,7 @@ class MainActivity : AppCompatActivity() {
         if (!hasAccessibilityPermission) {
             val dialogView = layoutInflater.inflate(R.layout.dialog_accessibility_image, null)
             val messageView = dialogView.findViewById<TextView>(R.id.dialogMessage)
-            messageView.text = "To detect words on screen, please enable the TextDetector accessibility service in your device settings.\n\nLook for 'TextDetector' in the list and toggle it ON."
+            messageView.text = getString(R.string.to_detect_words_on_screen_please_enable_the_textdetector_accessibility_service_in_your_device_settings_n_nlook_for_textdetector_in_the_list_and_toggle_it_on)
 
             AlertDialog.Builder(this)
                 .setTitle("Enable Accessibility Service")
@@ -135,9 +135,13 @@ class MainActivity : AppCompatActivity() {
         val hasAccessibilityPermission = isAccessibilityServiceEnabled(this, MyAccessibilityService::class.java)
 
         if (!hasAccessibilityPermission) {
+            val dialogView = layoutInflater.inflate(R.layout.dialog_accessibility_image, null)
+            val messageView = dialogView.findViewById<TextView>(R.id.dialogMessage)
+            messageView.text = getString(R.string.to_detect_words_on_screen_please_enable_the_textdetector_accessibility_service_in_your_device_settings_n_nlook_for_textdetector_in_the_list_and_toggle_it_on)
+
             AlertDialog.Builder(this)
                 .setTitle("Enable Accessibility Service")
-                .setMessage("To detect the word 'dog' on screen, please enable the TextDetector accessibility service in your device settings.\n\nLook for 'TextDetector' in the list and toggle it ON.")
+                .setView(dialogView)
                 .setPositiveButton("Open Settings") { _, _ ->
                     val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -163,8 +167,7 @@ class MainActivity : AppCompatActivity() {
                         }
                     }.start()
                 }
-                .setNegativeButton("Later") { _, _ ->
-                }
+                .setNegativeButton("Later") { _, _ -> }
                 .setCancelable(false)
                 .show()
         }
