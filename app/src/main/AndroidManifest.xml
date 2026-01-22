@@ -24,7 +24,7 @@
         </activity>
 
         <activity
-            android:name=".DogTestActivity"
+            android:name=".AccServiceSwitch"
             android:exported="false" />
 
         <service

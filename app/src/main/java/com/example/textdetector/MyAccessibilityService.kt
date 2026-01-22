@@ -6,7 +6,9 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import kotlin.concurrent.thread
@@ -26,9 +28,14 @@ class MyAccessibilityService : AccessibilityService() {
     private var badWords: List<BadWord> = emptyList()
     private val lock = Any() // Lock object for synchronizing access to shared variables
 
+    private lateinit var prefs: SharedPreferences
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         myPackageName = packageName
+
+        prefs = getSharedPreferences(AccServiceSwitch.PREFS_NAME, Context.MODE_PRIVATE)
+
         try {
             val info = serviceInfo
             // Include both text changes and window content changes to handle static web pages
@@ -110,6 +117,15 @@ private fun loadBadWordsFromAssets() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        // Read the "isServiceActive" flag from SharedPreferences.
+        // Default to 'true' so it works out-of-the-box if the settings screen has never been opened.
+        val isServiceActive = prefs.getBoolean(AccServiceSwitch.KEY_SERVICE_ACTIVE, true)
+
+        // If the service is set to inactive from the app, stop all processing immediately.
+        if (!isServiceActive) {
+            return
+        }
+
         if (event == null) return
 
         val pkgName = event.packageName?.toString() ?: ""

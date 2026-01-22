@@ -17,6 +17,7 @@ import android.text.TextUtils
 import android.content.Context
 import android.content.Intent
 import android.accessibilityservice.AccessibilityService
+import android.util.Log
 
 
 class MainActivity : AppCompatActivity() {
@@ -63,11 +64,16 @@ class MainActivity : AppCompatActivity() {
             if (!valid) return@setOnClickListener
 
             // Check all permissions after user clicks Start button
-            checkPermissions { allPermissionsGranted ->
-                if (allPermissionsGranted) {
-                    // Proceed to the next activity only if all permissions are granted
-                    startActivity(Intent(this@MainActivity, DogTestActivity::class.java))
+            // Add version check before calling checkPermissions
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                checkPermissions { allPermissionsGranted ->
+                    if (allPermissionsGranted) {
+                        startActivity(Intent(this@MainActivity, AccServiceSwitch::class.java))
+                    }
                 }
+            } else {
+                // For older versions, directly proceed
+                startActivity(Intent(this@MainActivity, AccServiceSwitch::class.java))
             }
         }
     }
@@ -94,7 +100,8 @@ class MainActivity : AppCompatActivity() {
         if (!hasAccessibilityPermission) {
             AlertDialog.Builder(this)
                 .setTitle("Enable Accessibility Service")
-                .setMessage("To detect the word 'dog' on screen, please enable the TextDetector accessibility service in your device settings.\n\nLook for 'TextDetector' in the list and toggle it ON.")
+                .setMessage("To detect words on screen, please enable the TextDetector accessibility service in your device settings.\n\nLook for 'TextDetector' in the list and toggle it ON.")
+                .setIcon(R.drawable.settings_steps)
                 .setPositiveButton("Open Settings") { _, _ ->
                     startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                 }
@@ -109,7 +116,7 @@ class MainActivity : AppCompatActivity() {
                 .setCancelable(false)
                 .show()
         } else {
-            callback(hasNotificationPermission && hasAccessibilityPermission)
+            callback(hasNotificationPermission)
         }
     }
 
@@ -117,8 +124,6 @@ class MainActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
 
         if (requestCode == NOTIFICATION_PERMISSION_REQUEST_CODE) {
-            val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
-
             // After notification permission is handled, check accessibility
             checkAccessibilityService()
         }
@@ -151,6 +156,7 @@ class MainActivity : AppCompatActivity() {
                                     startActivity(launchIntent)
                                 }
                             } catch (e: Exception) {
+                                Log.e("MainActivity", "Error occurred", e)
                             }
                         }
                     }.start()
