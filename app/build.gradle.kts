@@ -4,13 +4,13 @@ plugins {
 }
 
 android {
-    namespace = "com.example.textdetector"
+    namespace = "com.example.stayaccountable"
     compileSdk {
         version = release(36)
     }
 
     defaultConfig {
-        applicationId = "com.example.textdetector"
+        applicationId = "com.example.stayaccountable"
         minSdk = 24
         targetSdk = 36
         versionCode = 1

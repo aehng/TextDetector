@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "TextDetector"
+rootProject.name = "StayAccountable"
 include(":app")

@@ -1,4 +1,4 @@
-package com.example.textdetector
+package com.example.stayaccountable
 
 import android.accessibilityservice.AccessibilityService
 import android.view.accessibility.AccessibilityEvent
@@ -19,7 +19,8 @@ class BadWord(val word: String,val regex: Regex, val severity: Int) {
 class MyAccessibilityService : AccessibilityService() {
     private var myPackageName: String? = null
     private var lastNotificationTime = 0L
-    private val CHANNEL_ID = "dog_detection_channel"
+    // Update notification channel and title to StayAccountable
+    private val CHANNEL_ID = "stayaccountable_detection_channel"
     private val NOTIFICATION_ID = 1
     private var lastSentNormalizedText: String? = null
     private var lastSentTime = 0L
@@ -180,7 +181,7 @@ private fun loadBadWordsFromAssets() {
 
                         val toLog = if (allText.length > 2000) allText.take(2000) + "..." else allText
                         val logMessage = "DETECTED '${foundWord.word}' (Severity: ${foundWord.severity}) pkg=$pkgName event=${AccessibilityEvent.eventTypeToString(event.eventType)} text=\"$toLog\""
-                        val notificationBody = "Detected word: '${foundWord.word}'"
+                        val notificationBody = "StayAccountable detected: '${foundWord.word}'"
 
                         // Reduce logging to critical events only
                         showNotification(notificationBody)
@@ -286,7 +287,7 @@ private fun loadBadWordsFromAssets() {
                 // Small icon shown in the status bar and notification header.
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
                 // Title shown in the notification; keep it short and clear.
-                .setContentTitle("Text Detected!") // A more general title
+                .setContentTitle("StayAccountable Alert!") // Updated title
                 // The main body text (passed into this function).
                 .setContentText(notificationText) // Use the text passed into the function
                 // Priority hint for pre-Oreo devices (Oreo+ uses channel importance).

@@ -16,5 +16,5 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:paddingTop="16dp"
-        android:text="@string/to_detect_words_on_screen_please_enable_the_textdetector_accessibility_service_in_your_device_settings_n_nlook_for_textdetector_in_the_list_and_toggle_it_on" />
+        android:text="@string/accessibility_service_description" />
 </LinearLayout>

@@ -1,4 +1,4 @@
-package com.example.textdetector
+package com.example.stayaccountable
 
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge
@@ -17,7 +17,6 @@ import android.text.TextUtils
 import android.content.Context
 import android.content.Intent
 import android.accessibilityservice.AccessibilityService
-import android.util.Log
 import android.widget.TextView
 
 
@@ -101,7 +100,7 @@ class MainActivity : AppCompatActivity() {
         if (!hasAccessibilityPermission) {
             val dialogView = layoutInflater.inflate(R.layout.dialog_accessibility_image, null)
             val messageView = dialogView.findViewById<TextView>(R.id.dialogMessage)
-            messageView.text = getString(R.string.to_detect_words_on_screen_please_enable_the_textdetector_accessibility_service_in_your_device_settings_n_nlook_for_textdetector_in_the_list_and_toggle_it_on)
+            messageView.text = getString(R.string.accessibility_service_instructions)
 
             AlertDialog.Builder(this)
                 .setTitle("Enable Accessibility Service")
@@ -124,53 +123,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-
-        if (requestCode == NOTIFICATION_PERMISSION_REQUEST_CODE) {
-            // After notification permission is handled, check accessibility
-            checkAccessibilityService()
-        }
-    }
-
-    private fun checkAccessibilityService() {
-        val hasAccessibilityPermission = isAccessibilityServiceEnabled(this, MyAccessibilityService::class.java)
-
-        if (!hasAccessibilityPermission) {
-            val dialogView = layoutInflater.inflate(R.layout.dialog_accessibility_image, null)
-            val messageView = dialogView.findViewById<TextView>(R.id.dialogMessage)
-            messageView.text = getString(R.string.to_detect_words_on_screen_please_enable_the_textdetector_accessibility_service_in_your_device_settings_n_nlook_for_textdetector_in_the_list_and_toggle_it_on)
-
-            AlertDialog.Builder(this)
-                .setTitle("Enable Accessibility Service")
-                .setView(dialogView)
-                .setPositiveButton("Open Settings") { _, _ ->
-                    val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    startActivity(intent)
-
-                    // Start a background thread to monitor accessibility service status
-                    Thread {
-                        while (!isAccessibilityServiceEnabled(this, MyAccessibilityService::class.java)) {
-                            Thread.sleep(1000) // Check every second
-                        }
-
-                        // Once enabled, bring the user back to the app
-                        runOnUiThread {
-                            try {
-                                val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
-                                if (launchIntent != null) {
-                                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                                    startActivity(launchIntent)
-                                }
-                            } catch (e: Exception) {
-                                Log.e("MainActivity", "Error occurred", e)
-                            }
-                        }
-                    }.start()
-                }
-                .setNegativeButton("Later") { _, _ -> }
-                .setCancelable(false)
-                .show()
-        }
+        // No additional logic needed here; permission handling is done in checkPermissions.
     }
 
 

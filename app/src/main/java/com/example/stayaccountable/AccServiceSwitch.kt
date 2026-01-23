@@ -1,4 +1,4 @@
-package com.example.textdetector
+package com.example.stayaccountable
 
 import android.content.Context
 import android.content.Intent

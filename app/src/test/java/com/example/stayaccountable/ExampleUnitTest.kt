@@ -1,4 +1,4 @@
-package com.example.textdetector
+package com.example.stayaccountable
 
 import org.junit.Test
 
