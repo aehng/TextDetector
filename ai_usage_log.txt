@@ -1,16 +1,17 @@
 Date: January 16, 2026
 
-Actions performed by AI:
-1. Optimized `MainActivity.kt` by removing unnecessary imports, unused methods, and redundant code.
-2. Addressed app lagginess by optimizing event handling, reducing logging, and offloading tasks to background threads in `MyAccessibilityService.kt`.
-3. Improved accessibility by adding content descriptions to UI elements in `activity_main.xml` and `activity_dog_test.xml`.
-4. Moved permission checks and accessibility service prompts to occur after user sign-in in `MainActivity.kt`.
-5. Ensured the app waits for all permissions to be granted before navigating to the next screen.
-6. Implemented functionality to automatically switch back to the app after enabling the accessibility service.
-7. Simplified and standardized logging using the `TextDetectorLog` tag for easier debugging.
+AI Usage Log
 
-Next steps:
-- Test the app to ensure all changes work as expected and verify performance improvements.
-- Monitor for any additional issues or areas for optimization.
-- Use Android Studio's Profiler to monitor performance and identify any remaining bottlenecks.
-- Verify that accessibility features function correctly and the app behaves as expected.
+Major actions performed by AI:
+- Optimized MainActivity.kt by removing unnecessary imports, unused methods, and redundant code.
+- Addressed app lagginess by optimizing event handling, reducing logging, and offloading tasks to background threads in MyAccessibilityService.kt.
+- Improved accessibility by adding content descriptions to UI elements in activity_main.xml and activity_dog_test.xml.
+- Moved permission checks and accessibility service prompts to occur after user sign-in in MainActivity.kt.
+- Ensured the app waits for all permissions to be granted before navigating to the next screen.
+- Implemented functionality to automatically switch back to the app after enabling the accessibility service.
+- Simplified and standardized logging using the TextDetectorLog tag for easier debugging.
+- Helped with project and app renaming from TextDetector to StayAccountable, including code, resource, and manifest references.
+- Assisted with CSV bad word list integration and data class design for flexible word detection.
+- Provided step-by-step plans for feature implementation, UI validation, and error handling.
+- Supported troubleshooting of build errors, JDK setup, and compatibility issues.
+- Guided Android Studio usage, layout preview, and resource management best practices.
