@@ -1,8 +1,8 @@
 # CSE 310 - Sprint Time Log
 
-Name:
+Name: Elijah Kearl
 
-Sprint #:
+Sprint #: 1
 
 ## Instructions
 
@@ -24,14 +24,14 @@ The expected minimum amount of time each Sprint for each category is as follows:
 
 ## Time Log
 
-|Date      |Start Time|Category|Description                                 |Total Minutes|
-|----------|----------|:------:|--------------------------------------------|:-----------:|
-|          |          |        |                                            |             |
-|          |          |        |                                            |             |
-|          |          |        |                                            |             |
-|          |          |        |                                            |             |
-|          |          |        |                                            |             |
-|          |          |        |                                            |             |
+| Date | Start Time | Category |Description                                 |Total Minutes|
+|------|------------|:--------:|--------------------------------------------|:-----------:|
+| 1/24 | 10:30am    |    IM    |                                            |             |
+|      |            |          |                                            |             |
+|      |            |          |                                            |             |
+|      |            |          |                                            |             |
+|      |            |          |                                            |             |
+|      |            |          |                                            |             |
 
 _Note: Add more rows as needed._
 
