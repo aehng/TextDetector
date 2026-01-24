@@ -1,5 +1,3 @@
-Date: January 16, 2026
-
 AI Usage Log
 
 Major actions performed by AI:
@@ -8,10 +6,7 @@ Major actions performed by AI:
 - Improved accessibility by adding content descriptions to UI elements in activity_main.xml and activity_dog_test.xml.
 - Moved permission checks and accessibility service prompts to occur after user sign-in in MainActivity.kt.
 - Ensured the app waits for all permissions to be granted before navigating to the next screen.
-- Implemented functionality to automatically switch back to the app after enabling the accessibility service.
-- Simplified and standardized logging using the TextDetectorLog tag for easier debugging.
 - Helped with project and app renaming from TextDetector to StayAccountable, including code, resource, and manifest references.
 - Assisted with CSV bad word list integration and data class design for flexible word detection.
-- Provided step-by-step plans for feature implementation, UI validation, and error handling.
+- Provided step-by-step plans for feature implementation, UI validation, and error handling for future features.
 - Supported troubleshooting of build errors, JDK setup, and compatibility issues.
-- Guided Android Studio usage, layout preview, and resource management best practices.

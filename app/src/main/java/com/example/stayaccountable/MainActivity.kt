@@ -1,3 +1,6 @@
+// MainActivity.kt
+// Entry point for StayAccountable app. Handles login, permission checks, and navigation to the accessibility service switch screen.
+
 package com.example.stayaccountable
 
 import android.os.Bundle
@@ -19,14 +22,17 @@ import android.content.Intent
 import android.accessibilityservice.AccessibilityService
 import android.widget.TextView
 
-
+// MainActivity: Handles user login and permission flow
 class MainActivity : AppCompatActivity() {
+    // Request code for notification permission
     private val NOTIFICATION_PERMISSION_REQUEST_CODE = 1001
 
+    // Called when the activity is created
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
+        // Set up system bar insets for modern look
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
@@ -36,17 +42,20 @@ class MainActivity : AppCompatActivity() {
         setupUI()
     }
 
+    // Sets up the login UI and handles Start button logic
     private fun setupUI() {
         val usernameEt = findViewById<android.widget.EditText>(R.id.usernameEditText)
         val passwordEt = findViewById<android.widget.EditText>(R.id.etPassword)
         val startBtn = findViewById<android.widget.Button>(R.id.startButton)
 
 
+        // Handle Start button click
         startBtn.setOnClickListener {
             val username = usernameEt.text.toString().trim()
             val password = passwordEt.text.toString().trim()
 
             var valid = true
+            // Validate username
             if (username.isEmpty()) {
                 usernameEt.error = "Username required"
                 valid = false
@@ -54,6 +63,7 @@ class MainActivity : AppCompatActivity() {
                 usernameEt.error = null
             }
 
+            // Validate password
             if (password.isEmpty()) {
                 passwordEt.error = "Password required"
                 valid = false
@@ -61,6 +71,7 @@ class MainActivity : AppCompatActivity() {
                 passwordEt.error = null
             }
 
+            // If not valid, do not proceed
             if (!valid) return@setOnClickListener
 
             // Check all permissions after user clicks Start button
@@ -68,6 +79,7 @@ class MainActivity : AppCompatActivity() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 checkPermissions { allPermissionsGranted ->
                     if (allPermissionsGranted) {
+                        // Navigate to accessibility service switch screen
                         startActivity(Intent(this@MainActivity, AccServiceSwitch::class.java))
                     }
                 }
@@ -78,6 +90,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // Checks for required permissions (e.g., notifications)
     private fun checkPermissions(callback: (Boolean) -> Unit) {
         // Check notification permission
         val hasNotificationPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

@@ -1,3 +1,7 @@
+// MyAccessibilityService.kt
+// AccessibilityService implementation for StayAccountable
+// Detects bad words on screen and logs events for accountability
+
 package com.example.stayaccountable
 
 import android.accessibilityservice.AccessibilityService
@@ -13,94 +17,81 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import kotlin.concurrent.thread
 
-class BadWord(val word: String,val regex: Regex, val severity: Int) {
+// Data class representing a bad word, its regex, and severity
+class BadWord(val word: String, val regex: Regex, val severity: Int)
 
-}
+// Main accessibility service for monitoring screen content
 class MyAccessibilityService : AccessibilityService() {
+    // Package name of this app (used to ignore self events)
     private var myPackageName: String? = null
+    // Timestamp of last notification sent
     private var lastNotificationTime = 0L
-    // Update notification channel and title to StayAccountable
+    // Notification channel and ID constants
     private val CHANNEL_ID = "stayaccountable_detection_channel"
     private val NOTIFICATION_ID = 1
+    // Used for deduplication of events
     private var lastSentNormalizedText: String? = null
     private var lastSentTime = 0L
-    private val SENT_DEDUP_TTL = 10_000L // 10s
-    // Notification body constant
+    private val SENT_DEDUP_TTL = 10_000L // 10 seconds
+    // List of bad words loaded from assets
     private var badWords: List<BadWord> = emptyList()
-    private val lock = Any() // Lock object for synchronizing access to shared variables
-
+    // Lock for synchronizing event deduplication
+    private val lock = Any()
+    // SharedPreferences for service state
     private lateinit var prefs: SharedPreferences
 
+    // Called when the service is connected/enabled
     override fun onServiceConnected() {
         super.onServiceConnected()
         myPackageName = packageName
-
+        android.util.Log.d("MyAccessibilityService", "onServiceConnected called")
+        android.widget.Toast.makeText(this, "Service running", android.widget.Toast.LENGTH_SHORT).show()
+        // Load preferences for service state
         prefs = getSharedPreferences(AccServiceSwitch.PREFS_NAME, Context.MODE_PRIVATE)
-
         try {
             val info = serviceInfo
-            // Include both text changes and window content changes to handle static web pages
-            info.eventTypes = AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED or
-                              AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
+            // Listen for both text and content changes
+            info.eventTypes = AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED or AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
             info.feedbackType = android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_GENERIC
-            info.flags = android.accessibilityservice.AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or
-                         android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
-            info.notificationTimeout = 500 // Increased timeout to reduce event frequency
+            info.flags = android.accessibilityservice.AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            info.notificationTimeout = 500 // Reduce event frequency
             info.packageNames = null // Listen to all packages
             serviceInfo = info
-        } catch (_: Exception) {
-        }
-
+        } catch (_: Exception) {}
         createNotificationChannel()
         loadBadWordsFromAssets()
     }
 
-//This function was generated using Gemini but modified by me
-private fun loadBadWordsFromAssets() {
-    val foundWords = mutableListOf<BadWord>()
-    try {
-        val inputStream = applicationContext.assets.open("bad_words.csv")
-        val reader = inputStream.bufferedReader()
-
-        // 1. Read all lines into a list.
-        val lines = reader.readLines()
-
-        // 2. Loop through the list, but skip the first line (the header).
-        lines.drop(1).forEach { line ->
-            // The rest of your logic stays exactly the same.
-            val parts = line.split(',')
-            if (parts.size == 2) {
-                val word = parts[0].trim().lowercase()
-                val severity = parts[1].trim().toIntOrNull()
-
-                if (severity != null) {
-                    val variations = generateLeetVariations(word)
-                    for(d in variations){
-                        // Escape the variation 'd' to handle special characters like '$' literally.
-                        // Create the regex more intelligently.
-                        // Add a word boundary at the start ONLY if the word starts with a letter or number.
-                        val prefix = if (d.first().isLetterOrDigit()) "\\b" else ""
-                        // Add a word boundary at the end ONLY if the word ends with a letter or number.
-                        val suffix = if (d.last().isLetterOrDigit()) "\\b" else ""
-
-                        val searchRegex = Regex("$prefix${Regex.escape(d)}$suffix")
-
-                        foundWords.add(BadWord(d, searchRegex, severity))
-
+    // Loads bad words and their severities from assets/bad_words.csv
+    private fun loadBadWordsFromAssets() {
+        val foundWords = mutableListOf<BadWord>()
+        try {
+            val inputStream = applicationContext.assets.open("bad_words.csv")
+            val reader = inputStream.bufferedReader()
+            val lines = reader.readLines()
+            // Skip header, parse each line as word,severity
+            lines.drop(1).forEach { line ->
+                val parts = line.split(',')
+                if (parts.size == 2) {
+                    val word = parts[0].trim().lowercase()
+                    val severity = parts[1].trim().toIntOrNull()
+                    if (severity != null) {
+                        val variations = generateLeetVariations(word)
+                        for (d in variations) {
+                            // Add regex for each leet variation
+                            val prefix = if (d.first().isLetterOrDigit()) "\\b" else ""
+                            val suffix = if (d.last().isLetterOrDigit()) "\\b" else ""
+                            val searchRegex = Regex("$prefix${Regex.escape(d)}$suffix")
+                            foundWords.add(BadWord(d, searchRegex, severity))
+                        }
                     }
-
                 }
             }
-        }
-
-    } catch (e: Exception) {
+        } catch (e: Exception) {}
+        badWords = foundWords.sortedByDescending { it.severity }
     }
 
-    badWords = foundWords.sortedByDescending { it.severity }
-}
-
-
-
+    // Creates a notification channel for alerts (Android O+)
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val name = "Text Detection Alerts"
@@ -112,78 +103,58 @@ private fun loadBadWordsFromAssets() {
             try {
                 val notificationManager = getSystemService(NotificationManager::class.java)
                 notificationManager.createNotificationChannel(channel)
-            } catch (_: Exception) {
-            }
+            } catch (_: Exception) {}
         }
     }
 
+    // Main event handler: called for every relevant accessibility event
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // Read the "isServiceActive" flag from SharedPreferences.
-        // Default to 'true' so it works out-of-the-box if the settings screen has never been opened.
+        // Check if service is active (user can toggle in app)
         val isServiceActive = prefs.getBoolean(AccServiceSwitch.KEY_SERVICE_ACTIVE, true)
-
-        // If the service is set to inactive from the app, stop all processing immediately.
-        if (!isServiceActive) {
-            return
-        }
-
+        if (!isServiceActive) return
         if (event == null) return
-
         val pkgName = event.packageName?.toString() ?: ""
-
-        // Ignore events from System UI and our own app
-        if (pkgName == "com.android.systemui" || pkgName == myPackageName) {
-            return
-        }
-
-        // Gather text from the event and node tree
+        // Ignore events from system UI and this app
+        if (pkgName == "com.android.systemui" || pkgName == myPackageName) return
+        // Gather all visible text from the event
         val eventText = event.text.joinToString(" ")
         val contentDesc = event.contentDescription?.toString() ?: ""
         var allText = "$eventText $contentDesc"
-
-        // Offload text extraction to a background thread
+        // Recursively extract text from node tree in background
         thread {
             try {
                 event.source?.let { node ->
                     val nodeText = getTextFromNode(node)
                     allText += " $nodeText"
                 }
-            } catch (_: Exception) {
-            }
-
+            } catch (_: Exception) {}
             allText = allText.trim()
             if (allText.isEmpty()) return@thread
-
             val toProcess = allText.lowercase()
             var foundWord: BadWord? = null
+            // Check for any bad word match
             for (badWord in badWords) {
                 if (badWord.regex.containsMatchIn(toProcess)) {
                     foundWord = badWord
                     break
                 }
             }
-
             if (foundWord != null) {
                 val now = System.currentTimeMillis()
                 val normalized = toProcess.replace(Regex("[^a-z0-9\\s]"), " ").replace(Regex("\\s+"), " ").trim()
-
                 synchronized(lock) {
-                    if (lastSentNormalizedText != null &&
-                        normalized == lastSentNormalizedText &&
-                        now - lastSentTime < SENT_DEDUP_TTL) {
+                    // Deduplicate: don't send same event repeatedly
+                    if (lastSentNormalizedText != null && normalized == lastSentNormalizedText && now - lastSentTime < SENT_DEDUP_TTL) {
                         return@synchronized
                     }
-
                     if (now - lastNotificationTime > 5000) {
                         lastSentNormalizedText = normalized
                         lastSentTime = now
                         lastNotificationTime = now
-
-                        val toLog = if (allText.length > 2000) allText.take(2000) + "..." else allText
-                        val logMessage = "DETECTED '${foundWord.word}' (Severity: ${foundWord.severity}) pkg=$pkgName event=${AccessibilityEvent.eventTypeToString(event.eventType)} text=\"$toLog\""
                         val notificationBody = "StayAccountable detected: '${foundWord.word}'"
-
-                        // Reduce logging to critical events only
+                        // Log the event in the app
+                        sendEventBroadcast(foundWord.word, foundWord.severity)
+                        // Show notification to user
                         showNotification(notificationBody)
                     }
                 }
@@ -191,17 +162,9 @@ private fun loadBadWordsFromAssets() {
         }
     }
 
-
-    // Generated by AI adapted by me
-    // In MyAccessibilityService.kt
-
-    // In MyAccessibilityService.kt
-
+    // Generates all leet-speak variations for a word (e.g., a->4, e->3)
     private fun generateLeetVariations(word: String): Set<String> {
         val variations = mutableSetOf<String>()
-        // --- THIS IS THE FIX ---
-        // The map should ONLY contain the replacements. The recursive function will handle
-        // using the original character automatically.
         val leetMap = mapOf(
             'a' to listOf("4", "@"),
             'e' to listOf("3"),
@@ -210,109 +173,79 @@ private fun loadBadWordsFromAssets() {
             's' to listOf("5", "$"),
             't' to listOf("7")
         )
-
         fun findCombinations(index: Int, currentString: String) {
             if (index == word.length) {
                 variations.add(currentString)
                 return
             }
-
             val originalChar = word[index]
-
-            // --- AND THIS IS WHY IT WORKS ---
-            // 1. Always try the path with the original character.
             findCombinations(index + 1, currentString + originalChar)
-
-            // 2. If there are leetspeak replacements, try those paths as well.
             if (leetMap.containsKey(originalChar)) {
                 for (replacement in leetMap.getValue(originalChar)) {
                     findCombinations(index + 1, currentString + replacement)
                 }
             }
         }
-
         findCombinations(0, "")
         return variations
     }
 
-
-
-
-
-
+    // Recursively extracts all text from a node and its children
     private fun getTextFromNode(node: AccessibilityNodeInfo): String {
         val builder = StringBuilder()
-
-        // Get text from this node
         node.text?.let { builder.append(it).append(" ") }
         node.contentDescription?.let { builder.append(it).append(" ") }
-
-        // Recursively get text from child nodes
         for (i in 0 until node.childCount) {
             try {
                 node.getChild(i)?.let { child ->
                     builder.append(getTextFromNode(child)).append(" ")
-                    // do not call deprecated recycle()
                 }
-            } catch (_: Exception) {
-                // Skip if child is not accessible
-            }
+            } catch (_: Exception) {}
         }
-
         return builder.toString().trim()
     }
 
-
-    //Generated by AI
+    // Shows a notification to the user when a bad word is detected
     private fun showNotification(notificationText: String) {
         try {
-            // Create an Intent that will open the app's MainActivity when the user taps the notification.
             val intent = Intent(this, MainActivity::class.java)
-
-            // Wrap the Intent in a PendingIntent. This gives the notification a safe, system-managed token
-            // that will launch the Intent later when the user interacts with the notification.
-            // Flags used:
-            // - FLAG_UPDATE_CURRENT: if the PendingIntent already exists, update its extra data with this Intent.
-            // - FLAG_IMMUTABLE: the created PendingIntent cannot be modified (safer on newer Android versions).
             val pendingIntent = PendingIntent.getActivity(
                 this,
                 0,
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-
-            // Build the notification using NotificationCompat for backward compatibility.
-            // Provide a CHANNEL_ID so Android O+ devices route the notification to the correct channel.
             val builder = NotificationCompat.Builder(this, CHANNEL_ID)
-                // Small icon shown in the status bar and notification header.
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
-                // Title shown in the notification; keep it short and clear.
-                .setContentTitle("StayAccountable Alert!") // Updated title
-                // The main body text (passed into this function).
-                .setContentText(notificationText) // Use the text passed into the function
-                // Priority hint for pre-Oreo devices (Oreo+ uses channel importance).
+                .setContentTitle("StayAccountable Alert!")
+                .setContentText(notificationText)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
-                // When the user taps the notification, the PendingIntent will be fired.
                 .setContentIntent(pendingIntent)
-                // Automatically remove the notification from the shade when the user taps it.
                 .setAutoCancel(true)
-                // A short vibration pattern: [wait, vibrate, wait, vibrate]
                 .setVibrate(longArrayOf(0, 250, 250, 250))
-
-            // Get the NotificationManager and publish the notification with a stable ID.
             val notificationManager = getSystemService(NotificationManager::class.java)
             notificationManager.notify(NOTIFICATION_ID, builder.build())
         } catch (_: Exception) {
-            // Log any error while building or showing the notification. We swallow the exception
-            // to avoid crashing the accessibility service (robustness is important for background services).
+            // Swallow exceptions to avoid crashing the service
         }
     }
 
+    // Broadcasts an event to the app for logging in the event database
+    private fun sendEventBroadcast(description: String, severity: Int) {
+        val dbHelper = EventDatabaseHelper(applicationContext)
+        dbHelper.insertEvent(description, severity, System.currentTimeMillis())
+        val intent = Intent("com.example.stayaccountable.EVENT_BROADCAST")
+        intent.putExtra("description", description)
+        intent.putExtra("severity", severity)
+        sendBroadcast(intent)
+    }
 
+    // Required override: called if the service is interrupted
     override fun onInterrupt() {
         // Minimal logging policy: only log errors
     }
 
+    // Required override: called when the service is destroyed
     override fun onDestroy() {
         super.onDestroy()
         // Minimal logging policy

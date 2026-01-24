@@ -24,14 +24,14 @@ The expected minimum amount of time each Sprint for each category is as follows:
 
 ## Time Log
 
-| Date | Start Time | Category |Description                                 |Total Minutes|
-|------|------------|:--------:|--------------------------------------------|:-----------:|
-| 1/24 | 10:30am    |    IM    |                                            |             |
-|      |            |          |                                            |             |
-|      |            |          |                                            |             |
-|      |            |          |                                            |             |
-|      |            |          |                                            |             |
-|      |            |          |                                            |             |
+| Date | Start Time | Category | Description                     | Total Minutes |
+|------|------------|:--------:|---------------------------------|:-------------:|
+| 1/24 | 10:30am    |    IM    | Added logging events in the app |      135      |
+|      |            |          |                                 |               |
+|      |            |          |                                 |               |
+|      |            |          |                                 |               |
+|      |            |          |                                 |               |
+|      |            |          |                                 |               |
 
 _Note: Add more rows as needed._
 
