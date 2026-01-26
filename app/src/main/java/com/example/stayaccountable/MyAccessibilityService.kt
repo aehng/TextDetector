@@ -24,19 +24,25 @@ class BadWord(val word: String, val regex: Regex, val severity: Int)
 class MyAccessibilityService : AccessibilityService() {
     // Package name of this app (used to ignore self events)
     private var myPackageName: String? = null
+
     // Timestamp of last notification sent
     private var lastNotificationTime = 0L
+
     // Notification channel and ID constants
     private val CHANNEL_ID = "stayaccountable_detection_channel"
     private val NOTIFICATION_ID = 1
+
     // Used for deduplication of events
     private var lastSentNormalizedText: String? = null
     private var lastSentTime = 0L
     private val SENT_DEDUP_TTL = 10_000L // 10 seconds
+
     // List of bad words loaded from assets
     private var badWords: List<BadWord> = emptyList()
+
     // Lock for synchronizing event deduplication
     private val lock = Any()
+
     // SharedPreferences for service state
     private lateinit var prefs: SharedPreferences
 
@@ -45,19 +51,24 @@ class MyAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         myPackageName = packageName
         android.util.Log.d("MyAccessibilityService", "onServiceConnected called")
-        android.widget.Toast.makeText(this, "Service running", android.widget.Toast.LENGTH_SHORT).show()
+        android.widget.Toast.makeText(this, "Service running", android.widget.Toast.LENGTH_SHORT)
+            .show()
         // Load preferences for service state
         prefs = getSharedPreferences(AccServiceSwitch.PREFS_NAME, Context.MODE_PRIVATE)
         try {
             val info = serviceInfo
             // Listen for both text and content changes
-            info.eventTypes = AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED or AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
-            info.feedbackType = android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_GENERIC
-            info.flags = android.accessibilityservice.AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            info.eventTypes =
+                AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED or AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
+            info.feedbackType =
+                android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_GENERIC
+            info.flags =
+                android.accessibilityservice.AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
             info.notificationTimeout = 500 // Reduce event frequency
             info.packageNames = null // Listen to all packages
             serviceInfo = info
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+        }
         createNotificationChannel()
         loadBadWordsFromAssets()
     }
@@ -87,7 +98,8 @@ class MyAccessibilityService : AccessibilityService() {
                     }
                 }
             }
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+        }
         badWords = foundWords.sortedByDescending { it.severity }
     }
 
@@ -103,7 +115,8 @@ class MyAccessibilityService : AccessibilityService() {
             try {
                 val notificationManager = getSystemService(NotificationManager::class.java)
                 notificationManager.createNotificationChannel(channel)
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            }
         }
     }
 
@@ -127,7 +140,8 @@ class MyAccessibilityService : AccessibilityService() {
                     val nodeText = getTextFromNode(node)
                     allText += " $nodeText"
                 }
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            }
             allText = allText.trim()
             if (allText.isEmpty()) return@thread
             val toProcess = allText.lowercase()
@@ -141,7 +155,8 @@ class MyAccessibilityService : AccessibilityService() {
             }
             if (foundWord != null) {
                 val now = System.currentTimeMillis()
-                val normalized = toProcess.replace(Regex("[^a-z0-9\\s]"), " ").replace(Regex("\\s+"), " ").trim()
+                val normalized =
+                    toProcess.replace(Regex("[^a-z0-9\\s]"), " ").replace(Regex("\\s+"), " ").trim()
                 synchronized(lock) {
                     // Deduplicate: don't send same event repeatedly
                     if (lastSentNormalizedText != null && normalized == lastSentNormalizedText && now - lastSentTime < SENT_DEDUP_TTL) {
@@ -173,6 +188,7 @@ class MyAccessibilityService : AccessibilityService() {
             's' to listOf("5", "$"),
             't' to listOf("7")
         )
+
         fun findCombinations(index: Int, currentString: String) {
             if (index == word.length) {
                 variations.add(currentString)
@@ -200,7 +216,8 @@ class MyAccessibilityService : AccessibilityService() {
                 node.getChild(i)?.let { child ->
                     builder.append(getTextFromNode(child)).append(" ")
                 }
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            }
         }
         return builder.toString().trim()
     }
@@ -235,19 +252,16 @@ class MyAccessibilityService : AccessibilityService() {
         val dbHelper = EventDatabaseHelper(applicationContext)
         dbHelper.insertEvent(description, severity, System.currentTimeMillis())
         val intent = Intent("com.example.stayaccountable.EVENT_BROADCAST")
+        intent.setPackage(packageName) // Ensures it's only delivered in-app
         intent.putExtra("description", description)
         intent.putExtra("severity", severity)
         sendBroadcast(intent)
+
     }
 
     // Required override: called if the service is interrupted
     override fun onInterrupt() {
         // Minimal logging policy: only log errors
     }
-
-    // Required override: called when the service is destroyed
-    override fun onDestroy() {
-        super.onDestroy()
-        // Minimal logging policy
-    }
 }
+

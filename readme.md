@@ -16,7 +16,9 @@ Instructions for using the software:
 2. Enter a username and password (for now they are not saved) and hit "Start"
 3. Allow permissions and follow instructions to enable the accessibility service
 4. Hit start and ensure the switch is enabled.
-5. Navigate your phone as normal and if the trigger words are found (in testing mode the words "dog", "collar", and "bark") you will recieve a notification.
+5. Navigate your phone as normal and if the trigger words are found (in testing mode the words "dog", "collar", and "bark") you will receive a notification.
+6. As words are logged they are able to be viewed in the app. Word found, time, and severity are noted and saved to a database on device.
+
 
 ## Development Environment
 
@@ -29,8 +31,7 @@ To recreate the development environment, you need the following software and/or 
 I found these websites useful in developing this software:
 
 * [Android Mobile Developers](https://developer.android.com/)
-* 
-*
+* [Github Copilot](https://github.com/features/copilot)
 
 ## Future Work
 
@@ -38,4 +39,4 @@ The following items I plan to fix, improve, and/or add to this project in the fu
 
 * [ ] Link to Database
 * [ ] Save Username and Password data to phone and database and check if they are correct when logging in
-* [ ] Allow viewing of previous trigger words and their context
+* [ ] Allow viewing a partner's logs
