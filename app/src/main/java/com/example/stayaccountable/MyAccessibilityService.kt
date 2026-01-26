@@ -10,12 +10,11 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
-import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Build
 import androidx.core.app.NotificationCompat
-import kotlin.concurrent.thread
+import android.widget.Toast
 
 // Data class representing a bad word, its regex, and severity
 class BadWord(val word: String, val regex: Regex, val severity: Int)
@@ -25,36 +24,29 @@ class MyAccessibilityService : AccessibilityService() {
     // Package name of this app (used to ignore self events)
     private var myPackageName: String? = null
 
-    // Timestamp of last notification sent
-    private var lastNotificationTime = 0L
-
     // Notification channel and ID constants
     private val CHANNEL_ID = "stayaccountable_detection_channel"
     private val NOTIFICATION_ID = 1
 
-    // Used for deduplication of events
-    private var lastSentNormalizedText: String? = null
-    private var lastSentTime = 0L
-    private val SENT_DEDUP_TTL = 10_000L // 10 seconds
-
     // List of bad words loaded from assets
     private var badWords: List<BadWord> = emptyList()
 
-    // Lock for synchronizing event deduplication
-    private val lock = Any()
-
     // SharedPreferences for service state
     private lateinit var prefs: SharedPreferences
+
+    // Deduplication: map of word to last detection timestamp (ms)
+    private val recentDetections = mutableMapOf<String, Long>()
+    // Time window for deduplication (e.g., 1 minute)
+    private val DEDUPLICATION_WINDOW_MS = 60_000L
 
     // Called when the service is connected/enabled
     override fun onServiceConnected() {
         super.onServiceConnected()
         myPackageName = packageName
         android.util.Log.d("MyAccessibilityService", "onServiceConnected called")
-        android.widget.Toast.makeText(this, "Service running", android.widget.Toast.LENGTH_SHORT)
-            .show()
+        Toast.makeText(this, "Service running", Toast.LENGTH_SHORT).show()
         // Load preferences for service state
-        prefs = getSharedPreferences(AccServiceSwitch.PREFS_NAME, Context.MODE_PRIVATE)
+        prefs = getSharedPreferences(AccServiceSwitch.PREFS_NAME, MODE_PRIVATE)
         try {
             val info = serviceInfo
             // Listen for both text and content changes
@@ -98,7 +90,7 @@ class MyAccessibilityService : AccessibilityService() {
                     }
                 }
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
         }
         badWords = foundWords.sortedByDescending { it.severity }
     }
@@ -133,47 +125,35 @@ class MyAccessibilityService : AccessibilityService() {
         val eventText = event.text.joinToString(" ")
         val contentDesc = event.contentDescription?.toString() ?: ""
         var allText = "$eventText $contentDesc"
-        // Recursively extract text from node tree in background
-        thread {
-            try {
-                event.source?.let { node ->
-                    val nodeText = getTextFromNode(node)
-                    allText += " $nodeText"
-                }
-            } catch (_: Exception) {
+        android.util.Log.d("MyAccessibilityService", "EventType: ${event.eventType}, eventText: '$eventText', contentDesc: '$contentDesc'")
+        // Recursively extract text from node tree (synchronously)
+        try {
+            event.source?.let { node ->
+                val nodeText = getTextFromNode(node)
+                allText += " $nodeText"
             }
-            allText = allText.trim()
-            if (allText.isEmpty()) return@thread
-            val toProcess = allText.lowercase()
-            var foundWord: BadWord? = null
-            // Check for any bad word match
-            for (badWord in badWords) {
-                if (badWord.regex.containsMatchIn(toProcess)) {
-                    foundWord = badWord
-                    break
-                }
+        } catch (_: Exception) {
+        }
+        allText = allText.trim()
+        android.util.Log.d("MyAccessibilityService", "allText: '$allText'")
+        if (allText.isEmpty()) return
+        val toProcess = allText.lowercase()
+        val uniqueWords = toProcess.split(Regex("\\s+")).filter { it.isNotBlank() }.toSet()
+        android.util.Log.d("MyAccessibilityService", "uniqueWords: $uniqueWords")
+        // Find all bad words in this event
+        val detectedBadWords = badWords.filter { badWord -> uniqueWords.any { badWord.regex.matches(it) } }
+        val now = System.currentTimeMillis()
+        for (foundWord in detectedBadWords) {
+            val lastDetected = recentDetections[foundWord.word]
+            if (lastDetected != null && now - lastDetected < DEDUPLICATION_WINDOW_MS) {
+                // Skip duplicate within window
+                continue
             }
-            if (foundWord != null) {
-                val now = System.currentTimeMillis()
-                val normalized =
-                    toProcess.replace(Regex("[^a-z0-9\\s]"), " ").replace(Regex("\\s+"), " ").trim()
-                synchronized(lock) {
-                    // Deduplicate: don't send same event repeatedly
-                    if (lastSentNormalizedText != null && normalized == lastSentNormalizedText && now - lastSentTime < SENT_DEDUP_TTL) {
-                        return@synchronized
-                    }
-                    if (now - lastNotificationTime > 5000) {
-                        lastSentNormalizedText = normalized
-                        lastSentTime = now
-                        lastNotificationTime = now
-                        val notificationBody = "StayAccountable detected: '${foundWord.word}'"
-                        // Log the event in the app
-                        sendEventBroadcast(foundWord.word, foundWord.severity)
-                        // Show notification to user
-                        showNotification(notificationBody)
-                    }
-                }
-            }
+            recentDetections[foundWord.word] = now
+            val notificationBody = "StayAccountable detected: '${foundWord.word}'"
+            android.util.Log.d("MyAccessibilityService", "Logging and notifying for word '${foundWord.word}'")
+            sendEventBroadcast(foundWord.word, foundWord.severity)
+            showNotification(notificationBody)
         }
     }
 
@@ -264,4 +244,3 @@ class MyAccessibilityService : AccessibilityService() {
         // Minimal logging policy: only log errors
     }
 }
-
