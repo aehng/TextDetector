@@ -6,10 +6,10 @@ pluginManagement {
     }
 }
 dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        google()  // Required for Firebase and AndroidX libraries - needs dl.google.com access
         mavenCentral()
-        gradlePluginPortal()
     }
 }
 
