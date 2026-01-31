@@ -40,3 +40,14 @@ The following items I plan to fix, improve, and/or add to this project in the fu
 * [ ] Link to Database
 * [ ] Save Username and Password data to phone and database and check if they are correct when logging in
 * [ ] Allow viewing a partner's logs
+
+## Architecture Overview
+
+Current high-level flow (aligned with Android app architecture terminology):
+
+1. **User session (Presentation layer)** – `MainActivity` collects a username/password, validates input, and routes the user to `AccServiceSwitch` once permissions are granted.
+2. **Accessibility monitoring (Domain/Service layer)** – `MyAccessibilityService` listens for `AccessibilityEvent`s, extracts on-screen text, runs the bad-word detection logic, and raises events.
+3. **Local persistence (Data layer)** – `EventDatabaseHelper` writes each detection into the on-device SQLite database via the `events` table so history survives app restarts.
+4. **UI rendering (Presentation layer)** – `AccServiceSwitch` registers a BroadcastReceiver, refreshes the RecyclerView (`EventAdapter`) from SQLite, and displays the log entries to the user.
+
+This path can be summarized as: *User input ➜ Accessibility Service ➜ SQLite (`EventDatabaseHelper`) ➜ RecyclerView UI (`AccServiceSwitch`)*. Future Firebase sync work will hook into the data layer between detection and persistence while keeping this contract intact.
