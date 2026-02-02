@@ -31,6 +31,7 @@ To recreate the development environment, you need the following software and/or 
 I found these websites useful in developing this software:
 
 * [Android Mobile Developers](https://developer.android.com/)
+* [Firebase Authentication](https://firebase.google.com/docs/auth/android/start)
 * [Github Copilot](https://github.com/features/copilot)
 
 ## Future Work

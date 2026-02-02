@@ -10,3 +10,5 @@ Major actions performed by AI:
 - Assisted with CSV bad word list integration and data class design for flexible word detection.
 - Provided step-by-step plans for feature implementation, UI validation, and error handling for future features.
 - Supported troubleshooting of build errors, JDK setup, and compatibility issues.
+- Helped with Firebase integration errors
+- Added support for both account creation and sign-in in MainActivity.

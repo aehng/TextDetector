@@ -20,16 +20,23 @@ import android.text.TextUtils
 import android.content.Context
 import android.content.Intent
 import android.accessibilityservice.AccessibilityService
+import android.widget.Button
 import android.widget.TextView
+
 
 // MainActivity: Handles user login and permission flow
 class MainActivity : AppCompatActivity() {
     // Request code for notification permission
     private val NOTIFICATION_PERMISSION_REQUEST_CODE = 1001
 
+    private val authRepo = AuthRepository()
+
+    private var isSignInMode = false
+
     // Called when the activity is created
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        authRepo.initAuth()
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
         // Set up system bar insets for modern look
@@ -42,12 +49,21 @@ class MainActivity : AppCompatActivity() {
         setupUI()
     }
 
+
+
     // Sets up the login UI and handles Start button logic
     private fun setupUI() {
         val usernameEt = findViewById<android.widget.EditText>(R.id.usernameEditText)
         val passwordEt = findViewById<android.widget.EditText>(R.id.etPassword)
         val startBtn = findViewById<android.widget.Button>(R.id.startButton)
+        val toggleAuthModeText = findViewById<android.widget.TextView>(R.id.toggleAuthModeText)
 
+        updateAuthModeUI(startBtn, toggleAuthModeText)
+
+        toggleAuthModeText.setOnClickListener {
+            isSignInMode = !isSignInMode
+            updateAuthModeUI(startBtn, toggleAuthModeText)
+        }
 
         // Handle Start button click
         startBtn.setOnClickListener {
@@ -74,19 +90,73 @@ class MainActivity : AppCompatActivity() {
             // If not valid, do not proceed
             if (!valid) return@setOnClickListener
 
-            // Check all permissions after user clicks Start button
-            // Add version check before calling checkPermissions
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                checkPermissions { allPermissionsGranted ->
-                    if (allPermissionsGranted) {
-                        // Navigate to accessibility service switch screen
-                        startActivity(Intent(this@MainActivity, AccServiceSwitch::class.java))
+            // Attempt Firebase Auth sign-in
+            // Optionally, you can show a loading indicator here
+
+            authRepo.initAuth() // Ensure auth is initialized (safe to call multiple times)
+            if (isSignInMode) {
+                authRepo.signIn(
+                    email = username,
+                    password = password,
+                    onSuccess = {
+                        // On successful sign-in, check permissions and proceed
+                        runOnUiThread {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                checkPermissions { allPermissionsGranted ->
+                                    if (allPermissionsGranted) {
+                                        startActivity(Intent(this@MainActivity, AccServiceSwitch::class.java))
+                                    }
+                                }
+                            } else {
+                                startActivity(Intent(this@MainActivity, AccServiceSwitch::class.java))
+                            }
+                        }
+                    },
+                    onFailure = { exception ->
+                        // Show error to user
+                        runOnUiThread {
+                            val message = exception?.localizedMessage ?: "Sign in failed."
+                            android.widget.Toast.makeText(this@MainActivity, message, android.widget.Toast.LENGTH_LONG).show()
+                        }
                     }
-                }
+                )
             } else {
-                // For older versions, directly proceed
-                startActivity(Intent(this@MainActivity, AccServiceSwitch::class.java))
+                authRepo.createAccount(
+                    email = username,
+                    password = password,
+                    onSuccess = {
+                        // On successful account creation, check permissions and proceed
+                        runOnUiThread {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                checkPermissions { allPermissionsGranted ->
+                                    if (allPermissionsGranted) {
+                                        startActivity(Intent(this@MainActivity, AccServiceSwitch::class.java))
+                                    }
+                                }
+                            } else {
+                                startActivity(Intent(this@MainActivity, AccServiceSwitch::class.java))
+                            }
+                        }
+                    },
+                    onFailure = { exception ->
+                        // Show error to user
+                        runOnUiThread {
+                            val message = exception?.localizedMessage ?: "Account creation failed."
+                            android.widget.Toast.makeText(this@MainActivity, message, android.widget.Toast.LENGTH_LONG).show()
+                        }
+                    }
+                )
             }
+        }
+    }
+
+    private fun updateAuthModeUI(startBtn: Button, toggleText: TextView) {
+        if (isSignInMode) {
+            startBtn.setText(R.string.sign_in)
+            toggleText.setText(R.string.toggle_to_create_account)
+        } else {
+            startBtn.setText(R.string.create_account)
+            toggleText.setText(R.string.toggle_to_sign_in)
         }
     }
 
