@@ -7,26 +7,34 @@
     android:padding="16dp"
     tools:context=".AccServiceSwitch">
 
-    <androidx.appcompat.widget.SwitchCompat
-        android:id="@+id/accessibility_switch"
+    <Button
+        android:id="@+id/profileButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/run_text_detector"
-        app:layout_constraintBottom_toBottomOf="parent"
+        android:layout_marginTop="56dp"
+        android:text="Profile"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.497"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/accessibility_switch"
+        android:layout_width="273dp"
+        android:layout_height="47dp"
+        android:layout_marginTop="56dp"
+        android:text="Accessibility Service Monitoring"
+        app:layout_constraintEnd_toStartOf="@+id/profileButton"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.046" />
+        app:layout_constraintTop_toTopOf="parent" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/event_list"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:layout_marginTop="16dp"
         app:layout_constraintTop_toBottomOf="@id/accessibility_switch"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="16dp"/>
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
